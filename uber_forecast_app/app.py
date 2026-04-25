@@ -139,41 +139,31 @@ def main():
             np.mean(np.abs(err[mask] / actual_future.values[mask])) * 100
         ) if mask.any() else float("nan")
 
-        c1, c2, c3 = st.columns(3)
+        accuracy = 100 - mape
+        c1, c2, c3, c4 = st.columns(4)
         c1.metric("RMSE", f"{rmse:.0f} pickups")
         c2.metric("MAE", f"{mae:.0f} pickups")
         c3.metric("MAPE", f"{mape:.1f}%")
+        c4.metric("Model accuracy", f"{accuracy:.1f}%")
 
         with st.expander("What do these metrics mean?"):
             st.markdown(
                 f"""
 **MAE — Mean Absolute Error → {mae:.0f} pickups**
-On average, the forecast is off by **{mae:.0f} pickups per hour** (in absolute
-value). The most intuitive metric: *"if I predict 1,500 pickups, the real value
-will typically be within ±{mae:.0f} of that."*
+On average, the forecast is off by ±{mae:.0f} pickups per hour (in absolute value).
 
 **RMSE — Root Mean Squared Error → {rmse:.0f} pickups**
-Same idea as MAE, but **larger errors are penalised more heavily** (each error
-is squared before averaging). One miss of 500 weighs more than five misses of
-100, even though the totals match.
+Same idea as MAE, but larger errors are penalised more heavily (each error is
+squared before averaging). One miss of 500 weighs more than five misses of 100,
+even though the totals match.
 
 *Why it matters in logistics:* a single big miss is much worse than many small
 ones. Falling 100 packages short for 5 hours → reorganisation. Falling 500
-short in one hour → operational collapse. RMSE captures that asymmetry.
+short in one hour → operational collapse.
 
-*Health check:* RMSE is always ≥ MAE. If they are close (ratio
-{rmse/mae:.2f}× here) the errors are consistent — no rare catastrophic misses
-dragging the model down.
-
-**MAPE — Mean Absolute Percentage Error → {mape:.1f}%**
-The relative error: on average the forecast is off by **{mape:.1f}%** of the
-real value. Unlike RMSE/MAE (in pickups), MAPE is unitless, which lets you:
-
-- **Compare across traffic regimes:** {mae:.0f} pickups of error at 4 AM
-  (when there are ~200 pickups) is catastrophic; {mae:.0f} pickups at 6 PM
-  (when there are ~2,400) is excellent. MAPE normalises that.
-- **Talk to non-technical stakeholders:** *"the model is ~{100-mape:.0f}%
-  accurate"* lands faster than *"RMSE of {rmse:.0f}"*.
+**MAPE — Mean Absolute Percentage Error →** on average the forecast is off by
+{mape:.1f}% of the real value. Unlike RMSE/MAE (in pickups), MAPE is unitless,
+which lets us compare across traffic regimes.
                 """
             )
 
