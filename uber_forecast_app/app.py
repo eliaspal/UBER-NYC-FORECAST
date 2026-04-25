@@ -2,8 +2,7 @@
 
 Demo framing for logistics/scheduling roles:
   - "Same-day / next-day" forecast with shift-level breakdown
-  - Peak alerts in plain business language
-  - Model accuracy reported alongside (RMSE / MAE / MAPE)
+  - Accuracy reported on the visible window (RMSE / MAE / MAPE)
 """
 import pickle
 from pathlib import Path
@@ -78,20 +77,6 @@ def recent_baseline(history: pd.Series, anchor: pd.Timestamp, weeks: int = 4) ->
     return window.groupby(window.index.hour).mean()
 
 
-def detect_peaks(forecast: pd.Series, baseline: pd.Series, threshold: float = 1.25):
-    """Flag forecast hours where demand exceeds the recent hour-of-day average * threshold."""
-    alerts = []
-    for ts, value in forecast.items():
-        base = baseline.loc[ts.hour]
-        ratio = value / base if base > 0 else 1.0
-        if ratio >= threshold:
-            alerts.append({
-                "time": ts, "forecast": value,
-                "baseline": base, "ratio": ratio,
-            })
-    return alerts
-
-
 def main():
     bundle = load_bundle()
     forecaster = bundle["forecaster"]
@@ -159,6 +144,39 @@ def main():
         c2.metric("MAE", f"{mae:.0f} pickups")
         c3.metric("MAPE", f"{mape:.1f}%")
 
+        with st.expander("What do these metrics mean?"):
+            st.markdown(
+                f"""
+**MAE — Mean Absolute Error → {mae:.0f} pickups**
+On average, the forecast is off by **{mae:.0f} pickups per hour** (in absolute
+value). The most intuitive metric: *"if I predict 1,500 pickups, the real value
+will typically be within ±{mae:.0f} of that."*
+
+**RMSE — Root Mean Squared Error → {rmse:.0f} pickups**
+Same idea as MAE, but **larger errors are penalised more heavily** (each error
+is squared before averaging). One miss of 500 weighs more than five misses of
+100, even though the totals match.
+
+*Why it matters in logistics:* a single big miss is much worse than many small
+ones. Falling 100 packages short for 5 hours → reorganisation. Falling 500
+short in one hour → operational collapse. RMSE captures that asymmetry.
+
+*Health check:* RMSE is always ≥ MAE. If they are close (ratio
+{rmse/mae:.2f}× here) the errors are consistent — no rare catastrophic misses
+dragging the model down.
+
+**MAPE — Mean Absolute Percentage Error → {mape:.1f}%**
+The relative error: on average the forecast is off by **{mape:.1f}%** of the
+real value. Unlike RMSE/MAE (in pickups), MAPE is unitless, which lets you:
+
+- **Compare across traffic regimes:** {mae:.0f} pickups of error at 4 AM
+  (when there are ~200 pickups) is catastrophic; {mae:.0f} pickups at 6 PM
+  (when there are ~2,400) is excellent. MAPE normalises that.
+- **Talk to non-technical stakeholders:** *"the model is ~{100-mape:.0f}%
+  accurate"* lands faster than *"RMSE of {rmse:.0f}"*.
+                """
+            )
+
     st.divider()
 
     # ── Section 2: shift breakdown ────────────────────────────────────
@@ -177,52 +195,6 @@ def main():
             shift_name,
             f"{forecast_volume:,.0f} pickups",
             f"{delta_pct:+.1f}% vs 4w avg",
-        )
-
-    st.divider()
-
-    # ── Section 3: peak alerts ────────────────────────────────────────
-    st.subheader("Peak alerts")
-    alerts = detect_peaks(forecast, baseline, threshold=1.25)
-
-    if not alerts:
-        st.info("No demand peaks above 25% over the historical baseline.")
-    else:
-        peak_df = pd.DataFrame(alerts)
-        peak_df["delta_%"] = ((peak_df["ratio"] - 1) * 100).round(0)
-        peak_df["forecast"] = peak_df["forecast"].round(0).astype(int)
-        peak_df["baseline"] = peak_df["baseline"].round(0).astype(int)
-        peak_df["time"] = peak_df["time"].dt.strftime("%a %d %b %H:%M")
-        peak_df = peak_df[["time", "forecast", "baseline", "delta_%"]]
-        peak_df.columns = ["When", "Forecast", "Hist. avg", "Delta %"]
-        st.dataframe(peak_df, hide_index=True, width="stretch")
-
-        st.markdown(
-            f"**Action**: {len(alerts)} hour(s) flagged with demand "
-            "more than 25% above the historical baseline. "
-            "Consider adding capacity to absorb the surge."
-        )
-
-    st.divider()
-
-    # ── Section 4: model accuracy context ─────────────────────────────
-    with st.expander("How accurate is this model? (cross-validation)"):
-        st.markdown(
-            "**Walk-forward CV** on 5 separate 1-week test windows from the "
-            "training period (no data leakage):"
-        )
-        cv_data = pd.DataFrame({
-            "Test week":    ["2014-08-26", "2014-09-02", "2014-09-09",
-                             "2014-09-16", "2014-09-23"],
-            "RMSE":         [130.2, 178.2, 150.0, 134.4, 170.3],
-            "MAE":          [98.0, 142.6, 111.3, 94.8, 142.8],
-            "MAPE %":       [15.07, 15.41, 10.55, 8.97, 15.64],
-            "R squared":    [0.936, 0.949, 0.965, 0.970, 0.947],
-        })
-        st.dataframe(cv_data, hide_index=True, width="stretch")
-        st.caption(
-            "Mean RMSE 152.6 / R squared 0.953. "
-            "Baseline (linear trend only) RMSE was 746.7 -> hybrid reduces error 80%."
         )
 
 
