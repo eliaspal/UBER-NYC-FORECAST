@@ -23,17 +23,6 @@ RMSE 746.7, so the hybrid cuts error by ~80%.
 For the full analysis (periodogram, seasonal plots, residual diagnostics) see
 [notebooks/uber_nyc_forecast.ipynb](notebooks/uber_nyc_forecast.ipynb).
 
-## Quick start
-
-```bash
-cd uber_forecast_app
-pip install -r requirements.txt
-streamlit run app.py
-```
-
-The pre-trained `model.pkl` is committed in the repo, so the app runs immediately.
-To retrain from raw data, run `python train_model.py` first.
-
 ## Data source
 
 [FiveThirtyEight Uber Pickups in New York City](https://www.kaggle.com/datasets/fivethirtyeight/uber-pickups-in-new-york-city)
