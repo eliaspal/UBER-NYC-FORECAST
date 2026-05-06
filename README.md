@@ -3,7 +3,7 @@
 Hour-by-hour demand forecasting on the Uber NYC pickups dataset (Apr-Sep 2014,
 ~4.5M trips). Built as a portfolio piece for logistics & scheduling roles.
 
-**Live demo:** _add Streamlit Community Cloud URL after deploy_
+**Live demo:** https://uber-nyc-forecast.streamlit.app/
 
 ## Repository layout
 
